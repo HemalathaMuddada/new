@@ -30,9 +30,6 @@ import java.util.stream.Collectors;
 
 @Service
 public class JwtService {
-
-    @Autowired
-    private JwtEncoder jwtEncoder;
     
     @Value("${jwt.secret}")
     private String jwtSecret;

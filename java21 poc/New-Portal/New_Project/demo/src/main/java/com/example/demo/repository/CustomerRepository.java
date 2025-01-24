@@ -13,7 +13,7 @@ import com.example.demo.model.User;
 public interface CustomerRepository extends JpaRepository<User, Long>,JpaSpecificationExecutor<User> {
 	
 	@Query("SELECT DISTINCT user FROM User user " 
-//	+ "INNER JOIN FETCH user.authorities AS authorities "
+	+ "Left JOIN FETCH user.authorities AS authorities "
 			+ "WHERE lower(user.userName) = lower(:email)")
 	Optional<User> findByEmail(String email);
 }

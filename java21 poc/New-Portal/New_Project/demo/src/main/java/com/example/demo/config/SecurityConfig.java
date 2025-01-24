@@ -18,9 +18,14 @@ import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import com.example.demo.repository.CustomerRepository;
+import com.example.demo.service.JwtService;
+import com.example.demo.service.UserDetailsServiceImpl;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.jwk.JWK;
@@ -45,6 +50,7 @@ import java.util.UUID;
 
 import javax.crypto.SecretKey;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 
 @Configuration
@@ -55,20 +61,46 @@ public class SecurityConfig {
     @Value("${jwt.secret}")
     private String jwtSecret;
     
+   private JwtService jwtService;
     
+    public SecurityConfig(JwtService jwtService) {
+        this.jwtService = jwtService;
+    }
+    
+    @Bean
+    public UserDetailsServiceImpl userDetailsService() {
+        return new UserDetailsServiceImpl();
+    }
+    
+    @Bean
+    public JwtAuthenticationFilter jwtTokenFilter() {
+        return new JwtAuthenticationFilter(jwtService, userDetailsService());
+    }
 
     
     @Bean
 	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-		http.csrf(AbstractHttpConfigurer::disable)
-				.exceptionHandling(ex -> ex.authenticationEntryPoint((request, response, authException) -> {
-					log.error("Authentication Error: {}", authException.getMessage());
-					response.sendError(HttpServletResponse.SC_UNAUTHORIZED, authException.getMessage());
-				})).authorizeHttpRequests(auth -> auth.requestMatchers("/api/auth/login/**").permitAll()
-						.requestMatchers("/api/auth/allusers**").hasAnyAuthority("USER").anyRequest().authenticated())
-				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
-
-		return http.build();
+//		http.csrf(AbstractHttpConfigurer::disable)
+//				.exceptionHandling(ex -> ex.authenticationEntryPoint((request, response, authException) -> {
+//					log.error("Authentication Error: {}", authException.getMessage());
+//					response.sendError(HttpServletResponse.SC_UNAUTHORIZED, authException.getMessage());
+//				})).authorizeHttpRequests(auth -> auth.requestMatchers("/api/auth/login/**").permitAll()
+//						.requestMatchers("/api/auth/allusers**").hasAnyAuthority("USER").anyRequest().authenticated())
+//				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+//
+//		return http.build();
+    	http
+        .csrf(AbstractHttpConfigurer::disable)
+        .authorizeHttpRequests(auth -> auth
+            .requestMatchers("/api/auth/login/**").permitAll()
+            .requestMatchers("/api/auth/allusers**").hasAuthority("USER")
+            .anyRequest().authenticated()
+        )
+        .addFilterBefore(jwtTokenFilter(), UsernamePasswordAuthenticationFilter.class)
+        .sessionManagement(session -> 
+            session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+        );
+    	return http.build();
 	}
     
     @Bean
